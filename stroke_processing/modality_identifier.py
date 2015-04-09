@@ -207,8 +207,8 @@ def find_changing_fields(dicomdir):
 
 def identify_modalities(subjects=None, convert=True):
     ALL_MODALITIES=[]
-    #fieldnames = ['Subject', 'ProtocolName', 'SeriesDescription', 'ImageType', 'FolderName', 'RenamedFolderName']
-    fieldnames = ['Subject', 'ProtocolName', 'SeriesDescription', 'ImageType', 'FolderName']
+    fieldnames = ['Subject', 'ProtocolName', 'SeriesDescription', 'ImageType', 'FolderName', 'RenamedFolderName']
+    #fieldnames = ['Subject', 'ProtocolName', 'SeriesDescription', 'ImageType', 'FolderName']
     if subjects is None:
         subjects = sorted(os.listdir(DATA_ROOT))
     good_subjects = []
@@ -219,10 +219,23 @@ def identify_modalities(subjects=None, convert=True):
         pass
     # db = sqlite3.connect(DB_FILE)
     # db_cursor = db.cursor()
-    column_headings = '(%s)' % ', '.join([ f.lower() + ' text' for f in fieldnames])
-    columns = '(%s)' % ', '.join([ f.lower() for f in fieldnames])
+    # column_headings = '(%s)' % ', '.join([ f.lower() + ' text' for f in fieldnames])
+    # columns = '(%s)' % ', '.join([ f.lower() for f in fieldnames])
 
     #db_cursor.execute('CREATE TABLE modalities %s' % column_headings)
+    lisa_dict = {}
+    with open(LISA_CSV) as f:
+        reader = csv.DictReader(f)
+        fields = reader.fieldnames
+        (id_field,) = [f for f in fields if 'id' in f.lower()]
+        (flair_field,) = [f for f in fields if 'flair' in f.lower() and 'coronal' not in f.lower()]
+        for row in reader:
+            subj = row[id_field]
+            if subj == '':
+                continue
+            has_flair = row[flair_field]
+            assert has_flair in '01'
+            lisa_dict[row[id_field]] = bool(int(has_flair))
     changer_counter = collections.Counter()
     with open(OUT_CSV, 'w') as f, open(RENAMING_CSV, 'w') as ff, open('/dev/null','wb') as null:
         writer = csv.DictWriter(f, ['Subject', 'Folder name', 'Modality'])
@@ -242,6 +255,7 @@ def identify_modalities(subjects=None, convert=True):
                 os.mkdir(j(subj_out, 'original'))
             subj_modalities = []
             subj_raw_names = []
+            subj_unidentified_scans = []
             fail_count = 0
             modality_counter = collections.Counter()
             for unknown_modality in os.listdir(subj_in):
@@ -293,18 +307,18 @@ def identify_modalities(subjects=None, convert=True):
                                 fn = fn[len(unwanted_prefix):]
                         possible_sequences['FolderName'] = fn
                         # TODO uncomment this since MGH renamed things
-                        #possible_sequences['RenamedFolderName'] = find_matching(subj, unknown_modality)
+                        possible_sequences['RenamedFolderName'] = find_matching(subj, unknown_modality)
                     else:
-                        #possible_sequences['FolderName'] = possible_sequences['RenamedFolderName'] = ''
-                        possible_sequences['FolderName'] = ''
+                        possible_sequences['FolderName'] = possible_sequences['RenamedFolderName'] = ''
+                        #possible_sequences['FolderName'] = ''
                     renaming_writer.writerow(possible_sequences)
                     # db_cursor.execute('INSERT INTO modalities %s VALUES (' % columns + ', '.join(['?'] * len(fieldnames)) + ');',
                     #         [possible_sequences[field] for field in fieldnames])
 
-                    #suspected_modality = get_modality([possible_sequences[clue] for clue in ['ProtocolName', 'SeriesDescription', 'FolderName', 'RenamedFolderName']])
-                    suspected_modality = get_modality([possible_sequences[clue] for clue in ['ProtocolName', 'SeriesDescription', 'FolderName']])
+                    suspected_modality = get_modality([possible_sequences[clue] for clue in ['ProtocolName', 'SeriesDescription', 'FolderName', 'RenamedFolderName']])
+                    #suspected_modality = get_modality([possible_sequences[clue] for clue in ['ProtocolName', 'SeriesDescription', 'FolderName']])
                     if suspected_modality is None:
-                        print(sequence_clues)
+                        subj_unidentified_scans.append((modality_dir, sequence_clues))
                         continue
                     suspected_modality = suspected_modality.replace(' ','')
 
@@ -325,7 +339,6 @@ def identify_modalities(subjects=None, convert=True):
                     except:
                         pass
                     out_file_name = j(scandir_out, '%s_%s_raw.nii.gz' % (subj, suspected_modality))
-                    print(out_file_name)
                     success = True
                     if convert:
                         try:
@@ -359,6 +372,13 @@ def identify_modalities(subjects=None, convert=True):
                     writer.writerow(out)
             matrix.append(['t1' in subj_modalities, 'flair' in subj_modalities, 'dwi' in subj_modalities])
             subj_raw_names.extend(['?'] * fail_count)
+            if 'flair' not in subj_modalities and lisa_dict[subj]:
+                print("~" * 70)
+                print("I couldn't find a FLAIR for subject %s even though Lisa says there is one. Here's what I found but couldn't ID:" % subj)
+                for (loc, clues) in subj_unidentified_scans:
+                    print(loc)
+                    print(clues)
+                    print()
             if 'flair' in subj_modalities and 'dwi' in subj_modalities:
                 good_subjects.append(subj)
             else:
@@ -394,14 +414,16 @@ if __name__ == '__main__':
     STROKE='/data/vision/polina/projects/stroke'
     global DATA_ROOT
     DATA_ROOT= j(STROKE, 'raw_datasets', site_number)
-    # global RENAMED_ROOT
-    # RENAMED_ROOT= j(STROKE, 'received_work', site, 'renamed')
+    global RENAMED_ROOT
+    RENAMED_ROOT= j(STROKE, 'received_work', site_name, 'renamed')
     global DATA_OUT
     DATA_OUT= j(STROKE, 'processed_datasets', process_date, site_name)
     global OUT_CSV
     OUT_CSV= j(STROKE, 'work', 'rameshvs', site_name + '.csv')
     global DB_FILE
     DB_FILE= j(STROKE, 'work', 'rameshvs', site_name + '.db')
+    global LISA_CSV
+    LISA_CSV = j(STROKE, 'received_work', 'site_modality_info_csv', site_name + '.csv')
     global RENAMING_CSV
     RENAMING_CSV= j(STROKE, 'work', 'rameshvs', site_name + '_renaming.csv')
     global BINARY_CSV

@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
     #dataset.add_mandatory_input(modality='t1', feature='raw')
     #dataset.add_mandatory_input(modality='flair', feature='img')
-    dataset.add_mandatory_input(modality='flair', feature='raw')
-    dataset.get_original(subj=subj, modality='t1', feature='raw')
+    # dataset.add_mandatory_input(modality='flair', feature='raw')
+    # dataset.get_original(subj=subj, modality='t1', feature='raw')
 
     if mode == 'server':
         tracking.run_server(subject_list, dataset)
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         raise NotImplementedError
 
     mask = dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers+'_brainmask')
-    robex = pb.RobexCommand(
+    robex = pb.ROBEXCommand(
             "Brain extraction with ROBEX",
             input=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers),
             output=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers+'_robex'),
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         atlas_img = atlas.get_original(kernel=sigma)
         basic_threshold_segmentation = dataset.get(subj=subj, modality='flair', feature='wmh_raw_threshold_seg', modifiers='')
         ###### Final atlas -> subject registration
-        forward_reg = pb.ANTSCommand("Register label-blurred flair atlas with sigma %d to subject" % sigma,
+        forward_reg = pb.ANTSCommand("Register atlas to subject",
                 moving=atlas_img,
                 fixed=subj_final_img,
                 output_folder=os.path.join(dataset.get_folder(subj=subj), 'reg'),
@@ -166,7 +166,7 @@ if __name__ == '__main__':
                 )
 
         pb.ANTSWarpCommand.make_from_registration(
-                "Warp subject image to atlas space using sigma %d warp" % sigma,
+                "Warp subject image to atlas space",
                 moving=subj_final_img,
                 reference=atlas_img,
                 output_filename=dataset.get(subj=subj, modality='flair', feature='img', modifiers='_in_atlas'),
@@ -175,13 +175,13 @@ if __name__ == '__main__':
                 )
 
         label_warp = pb.ANTSWarpCommand.make_from_registration(
-                "Warp atlas labels to subject space using sigma %d warp" % sigma,
+                "Warp atlas labels to subject space",
                 moving=buckner.get_original(feature='_seg'),
                 reference=subj_final_img,
                 registration=forward_reg,
                 useNN=True)
         pb.ANTSWarpCommand.make_from_registration(
-                "Warp atlas image to subject space using sigma %d warp" % sigma,
+                "Warp atlas image to subject space",
                 moving=atlas_img,
                 reference=subj_final_img,
                 output_filename=dataset.get(subj=subj, modality='atlas', feature='img', modifiers='_in_subject'),
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                 )
 
         threshold_segmentation_count = pb.NiiToolsMaskedThresholdCountCommand(
-                "Threshold segmentation computation",
+                "Threshold segmentation volumes",
                 infile=intensity_corr.outfiles[0],
                 threshold=WMH_THRESHOLD,
                 output=dataset.get(subj=subj, modality='other', feature='wmh_raw_threshold_seg', modifiers='', extension='.txt'),
@@ -220,14 +220,14 @@ if __name__ == '__main__':
         #subj_png_filename = dataset.get(subj=subj, modality='other', feature=filename, modifiers='', extension='.png')
         subj_png_filename = dataset.get(subj=subj, modality='other', feature='buckner_labels', modifiers='', extension='.png')
         pb.PyFunctionCommand(
-                "Generate flair with buckner label overlay",
-                "tools.better_overlay",
-                [subj_final_img,
-                label_warp.outfiles[0],
-                [15, 17, 19, 20, 21, 22, 23, 25],
-                subj_png_filename],
-                output_positions=[3],
-                )
+            "Generate static overlay image",
+            "tools.better_overlay",
+            [subj_final_img,
+            label_warp.outfiles[0],
+            [15, 17, 19, 20, 21, 22, 23, 25],
+            subj_png_filename],
+            output_positions=[3],
+            )
 
         # ####### run the registration the other way
         # for mask_feature in ['_ventricles_dilate_seg', '_fixed_mask_from_seg_binary']:
@@ -292,6 +292,14 @@ if __name__ == '__main__':
     # NIPYPE_ROOT = '/data/scratch/rameshvs/sandbox/nipype_regpipe'
     # wf = tracker.make_nipype_pipeline(NIPYPE_ROOT)
     log_folder = dataset.get_log_folder(subj=subj)
-    pb.Command.generate_code_from_datasets([dataset, atlas], log_folder, subj, sge=True,
+    pb.Command.generate_code_from_datasets([dataset, atlas], log_folder, subj, sge=False,
             wait_time=0, tracker=tracker)
+    site = 'site' + data_subfolder.split('site')[-1][:2]
+    subjects_file = '/data/vision/polina/projects/stroke/work/subject_lists/sites/%s.txt' % site
+    subjects = open(subjects_file).read().split()
+    aggregate_json = '/data/vision/polina/projects/stroke/work/rameshvs/site_pipeline_data/%s.json' % site
+    if not os.path.exists(aggregate_json):
+        tracker.gather_multi_subject_jsons(subjects, subj, aggregate_json)
+    import json
+    tracking.run_server(subjects, dataset, json.load(open(aggregate_json)))
 
