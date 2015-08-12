@@ -2,9 +2,10 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
+source $DIR/../stroke.cfg 2>/dev/null
 site=$1
-subjectlist=/data/vision/polina/projects/stroke/work/subject_lists/sites/${site}.txt
-export PYTHONPATH=/data/vision/polina/users/rameshvs/medical-imaging-pipelines/:$DIR/../:$PYTHONPATH
+subjectlist=${site_subject_list}/${site}.txt
+export PYTHONPATH=${pipebuilder_path}:$DIR/../:$PYTHONPATH
 
 echo $subjectlist
 cat $subjectlist | sed -n '9p' | while read subj; do

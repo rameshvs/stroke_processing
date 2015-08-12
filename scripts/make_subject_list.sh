@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source $DIR/../stroke.cfg 2>/dev/null
 site=$1
-subjectlist=/data/vision/polina/projects/stroke/work/subject_lists/sites/${site}.txt
-ls /data/vision/polina/projects/stroke/processed_datasets/2015_02_04/site${site}  > $subjectlist
+subjectlist=${site_list_path}/${site}.txt
+ls ${processed_0204}/site${site}  > $subjectlist

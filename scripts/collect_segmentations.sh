@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 site=$1
-sitedir=/data/vision/polina/projects/stroke/processed_datasets/2015_02_04/site${site}/
-output=/data/vision/polina/projects/stroke/work/rameshvs/volumes/site${site}.csv
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+source $DIR/../stroke.cfg 2>/dev/null
+sitedir=${processed_0204}/site${site}/
+output=${volume_csv_path}/site${site}.csv
 echo $sitedir
 echo '"Subject","WMHv"' > $output
 find $sitedir -name "*seg.txt" | sort | while read f; do

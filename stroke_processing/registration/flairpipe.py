@@ -4,8 +4,9 @@ import sys
 
 import pipebuilder as pb
 from pipebuilder import tracking
+import pipebuilder.custom
 
-from ..tools import config
+from stroke_processing.tools import config
 cwd = os.path.dirname(os.path.abspath(__file__))
 
 ATLAS_MODALITY = 't1'
@@ -88,21 +89,18 @@ if __name__ == '__main__':
     ###
     flair_input = dataset.get_original(subj=subj, modality='flair', feature='raw')
     dwi_input = dataset.get_original(subj=subj, modality='dwi', feature='raw')
-    if True:
-        modifiers = '_prep_pad'
-        first_step = pb.PyPadCommand(
-                     "Pad flair by convention",
-                     #cmdName=os.path.join(cwd, 'strip_header.py'),
-                     input=flair_input,
-                     output=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers),
-                     out_mask=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers + '_mask_seg'),
-                     )
+    modifiers = '_prep_pad'
+    first_step = pb.NiiToolsPadCommand(
+                 "Pad flair by convention",
+                 #cmdName=os.path.join(cwd, 'strip_header.py'),
+                 input=flair_input,
+                 output=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers),
+                 outmask=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers + '_mask_seg'),
+                 )
 
-    else:
-        raise NotImplementedError
 
     mask = dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers+'_brainmask')
-    robex = pb.RobexCommand(
+    robex = pb.custom.RobexCommand(
             "Brain extraction with ROBEX",
             input=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers),
             output=dataset.get(subj=subj, modality='flair', feature='img', modifiers=modifiers+'_robex'),
@@ -198,15 +196,16 @@ if __name__ == '__main__':
                 inversion_sequence=['forward', 'inverse'],
                 useNN=True,
                 )
-        pb.PyFunctionCommand(
-                "Verify ventricles greater than white matter",
-                function="flairpipe.check_fluid_attenuation",
-                args=[
-                    dwi_input,
-                    dwi_seg,
-                    dwi_is_dwi
-                    ],
-                output_positions=[2])
+        # TODO finish this: in-progress way of making sure modality is right
+        # pb.PyFunctionCommand(
+        #         "Verify ventricles greater than white matter",
+        #         function="flairpipe.check_fluid_attenuation",
+        #         args=[
+        #             dwi_input,
+        #             dwi_seg,
+        #             dwi_is_dwi
+        #             ],
+        #         output_positions=[2])
 
         dwi_matchwm = dataset.get(subj=subj, modality='dwi', feature='img', modifiers='_matchwm')
         intensity_corr_dwi = pb.NiiToolsMatchIntensityCommand(
@@ -275,15 +274,15 @@ if __name__ == '__main__':
         filename = os.path.basename(label_warp.outfiles[0]).split('.')[0]
         #subj_png_filename = dataset.get(subj=subj, modality='other', feature=filename, modifiers='', extension='.png')
         subj_png_filename = dataset.get(subj=subj, modality='other', feature='buckner_labels', modifiers='', extension='.png')
-        pb.PyFunctionCommand(
-                "Generate flair with buckner label overlay",
-                "tools.better_overlay",
-                [subj_final_img,
-                label_warp.outfiles[0],
-                [15, 17, 19, 20, 21, 22, 23, 25],
-                subj_png_filename],
-                output_positions=[3],
-                )
+        # pb.PyFunctionCommand(
+        #         "Generate flair with buckner label overlay",
+        #         "tools.better_overlay",
+        #         [subj_final_img,
+        #         label_warp.outfiles[0],
+        #         [15, 17, 19, 20, 21, 22, 23, 25],
+        #         subj_png_filename],
+        #         output_positions=[3],
+        #         )
 
         # ####### run the registration the other way
         # for mask_feature in ['_ventricles_dilate_seg', '_fixed_mask_from_seg_binary']:
