@@ -271,64 +271,6 @@ if __name__ == '__main__':
                 inversion='inverse')
 
         filename = os.path.basename(label_warp.outfiles[0]).split('.')[0]
-        #subj_png_filename = dataset.get(subj=subj, modality='other', feature=filename, modifiers='', extension='.png')
-        subj_png_filename = dataset.get(subj=subj, modality='other', feature='buckner_labels', modifiers='', extension='.png')
-        # pb.PyFunctionCommand(
-        #         "Generate flair with buckner label overlay",
-        #         "tools.better_overlay",
-        #         [subj_final_img,
-        #         label_warp.outfiles[0],
-        #         [15, 17, 19, 20, 21, 22, 23, 25],
-        #         subj_png_filename],
-        #         output_positions=[3],
-        #         )
-
-        # ####### run the registration the other way
-        # for mask_feature in ['_ventricles_dilate_seg', '_fixed_mask_from_seg_binary']:
-        #     inverse_reg = pb.ANTSCommand("Register subject to label-blurred flair atlas with ",
-        #             fixed=atlas_img,
-        #             moving=subj_final_img,
-        #             output_folder=os.path.join(dataset.get_folder(subj=subj), 'reg'),
-        #             metric='CC',
-        #             radiusBins=4,
-        #             mask=buckner.get_original(feature=mask_feature),
-        #             regularization='Gauss[%0.3f,%0.3f]' % (regularization,regularization2),
-        #             method='200x200x200',
-        #             )
-
-        #     subj_to_atlas_warp = pb.ANTSWarpCommand.make_from_registration(
-        #             "Warp subject image to atlas space using  warp",
-        #             moving=subj_final_img,
-        #             reference=atlas_img,
-        #             registration=inverse_reg,
-        #             inversion='forward',
-        #             )
-        #     label_warp = pb.ANTSWarpCommand.make_from_registration(
-        #             "Warp atlas labels to subject space using  warp",
-        #             moving=buckner.get_original(feature='_seg'),
-        #             reference=subj_final_img,
-        #             registration=inverse_reg,
-        #             inversion='inverse',
-        #             useNN=True,
-        #             )
-        #     filename = os.path.basename(label_warp.outfiles[0]).split('.')[0]
-        #     subj_png_filename = dataset.get(subj=subj, modality='other', feature=filename, modifiers='', extension='.png')
-        #     pb.PyFunctionCommand(
-        #             "Generate flair with buckner label overlay",
-        #             "tools.better_overlay",
-        #             [subj_final_img,
-        #             label_warp.outfiles[0],
-        #             [15, 17, 19, 20, 21, 22, 23, 25],
-        #             subj_png_filename],
-        #             output_positions=[3])
-
-        # pb.ANTSWarpCommand.make_from_registration(
-        #         "Warp atlas image to subject space using  warp",
-        #         moving=atlas_img,
-        #         reference=subj_final_img,
-        #         registration=inverse_reg,
-        #         inversion='inverse',
-        #         )
 
     for path in [os.path.join(BASE,subj,'images'),
             os.path.join(BASE,subj,'images','reg'),

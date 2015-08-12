@@ -4,7 +4,7 @@ site=$1
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 source $DIR/../stroke.cfg 2>/dev/null
-subjectlist=${site_list_path}/site${site}.txt
+subjectlist=${site_subject_lists}/site${site}.txt
 export PYTHONPATH=${pipebuilder_path}:$DIR/../:$PYTHONPATH
 echo $subjectlist
 
