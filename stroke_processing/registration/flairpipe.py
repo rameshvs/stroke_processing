@@ -19,7 +19,6 @@ STROKE_THRESHOLD = 1
 
 CLOBBER_EXISTING_OUTPUTS = False
 
-#SCRATCH_ROOT = '/data/scratch/rameshvs'
 PROCESSING_ROOT = config.config.get('subject_data', 'processing_root')
 
 ATLAS_BASE = config.config.get('subject_data', 'atlas_base')
@@ -344,8 +343,6 @@ if __name__ == '__main__':
     tracker.compute_dependencies()
 
     ###
-    # NIPYPE_ROOT = '/data/scratch/rameshvs/sandbox/nipype_regpipe'
-    # wf = tracker.make_nipype_pipeline(NIPYPE_ROOT)
     log_folder = dataset.get_log_folder(subj=subj)
     pb.Command.generate_code_from_datasets([dataset, atlas], log_folder, subj, sge=True,
             wait_time=0, tracker=tracker)
